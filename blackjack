@@ -1,0 +1,468 @@
+# Blackjack version 1.2
+
+# Imports
+import simplegui
+import random
+
+
+# Globals
+CARD_SIZE = (73, 98)
+CARD_CENTER = (36.5, 49)
+card_images = simplegui.load_image("https://dl.dropbox.com/sh/bh9ia9tk18rulxb/mM4bf9dP1C/cards.jfitz.png?d1=1")
+CARD_BACK_SIZE = (71, 96)
+CARD_BACK_CENTER = (35.5, 48)
+card_back = simplegui.load_image("https://dl.dropbox.com/sh/bh9ia9tk18rulxb/YQNt9Fs1Ev/card_back.png?d1=1")    
+SUITS = ('C', 'S', 'H', 'D')
+RANKS = ('A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K')
+VALUES = {'A':1, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, 'T':10, 'J':10, 'Q':10, 'K':10}
+
+
+pot = 0				# All bets in a round
+p_cash = 1000			# Player's money
+d_cash = 1000			# Dealer's money
+#p_cash = 1			# Testing mode
+#d_cash = 1			# Testing mode
+score = 0			# General score
+rot = 0			        # Rotation of the starting picture
+rots = []		        # Rotation angles of multiple aces
+in_play = False			# Status of the round
+welc_text = ["Welcome", "to the", "BLACKJACK"]
+welc_pos = [[160, 100], [210, 200], [110, 300]]
+
+rules = ["The object of the game is to reach 21 points or to reach",
+         "a score higher than the dealer without exceeding 21.", 
+         "Counting:", 
+         "Face cards (Kings, Queens, and Jacks) are counted as ten points.",
+         "The player and dealer can count his own ace as 1-point or 11 points.",
+         "All other cards are counted as the numeric value shown on the card.", 
+         "Bets:",
+         "The usual bet for a game is 1. You can make additional bets:",
+         "5, 10, 25, 50 - but only on the next card to hit or the next deal.",
+         "Continue"]
+rules_pos = [[30, 50], [30, 100], [30, 170], [30, 220], [30, 270], [30, 320], [30, 390], [30, 440], [30, 490], [260, 550]]
+dot_number = 1					# Number of dots on a loading screen
+
+"""
+Screens of game:
+0 - Loading screen
+1 - Starting screen
+? - Name choice  - Not yet implemented
+21 - Question for rules refresher
+22 - Rules
+3 - Picture choice
+4 - The actual game
+5 - End game text
+"""
+screen = 0				
+
+
+# Player's pictures
+d_image  = simplegui.load_image("https://dl.dropbox.com/s/q01slq8r5if7nnu/p1.png?d1=1")
+p_image1 = simplegui.load_image("https://dl.dropbox.com/s/2q6rucsir6nsnal/p2.png?d1=1")
+p_image2 = simplegui.load_image("https://dl.dropbox.com/s/2dbu8dykrkyzky2/p3.png?d1=1")
+p_image3 = simplegui.load_image("https://dl.dropbox.com/s/n7th4tihpkfq6er/p4.png?d1=1")
+p_image4 = simplegui.load_image("https://dl.dropbox.com/s/ff0cszz6bgix9f6/p5.png?d1=1")
+p_image5 = simplegui.load_image("https://dl.dropbox.com/s/rtv2x4qo44r12cs/p6.png?d1=1")
+p_image6 = simplegui.load_image("https://dl.dropbox.com/s/0xghwac218g5y5w/p7.png?d1=1")
+p_image7 = simplegui.load_image("https://dl.dropbox.com/s/lkq4es1cwht72kw/p8.png?d1=1")
+p_image8 = simplegui.load_image("https://dl.dropbox.com/s/okhzu9mka0dcelh/p9.png?d1=1")
+
+d_image_size  = [[108, 101], [216, 202]]
+p_image1_size = [[115, 114], [230, 228]]
+p_image2_size = [[128, 128], [256, 256]]
+p_image3_size = [[128, 128], [256, 256]]
+p_image4_size = [[114, 118.5], [228, 237]]
+p_image5_size = [[113, 120.5], [226, 241]]
+p_image6_size = [[102, 122.5], [204, 245]]
+p_image7_size = [[105, 120.5], [210, 241]]
+p_image8_size = [[115, 122.5], [230, 245]]
+
+sog_image = simplegui.load_image("https://dl.dropbox.com/s/q2gk3u90sh2muw9/sack_of_money.jpg?d1=1")
+sog_image_size  = [[55.5, 64.5], [111, 129]]
+
+chip_image = simplegui.load_image("https://dl.dropbox.com/s/wipcj4dbzinp1cz/red_chip.jpg?d1=1")
+chip_image_size  = [[250, 250], [500, 500]]
+
+
+# Classes
+class Card:
+    def __init__(self, suit, rank):
+        if (suit in SUITS) and (rank in RANKS):
+            self.suit = suit
+            self.rank = rank
+        else:
+            self.suit = None
+            self.rank = None
+            print "Invalid card: ", suit, rank
+
+    def draw(self, canvas, pos):	# define the image to draw and actually draw a card
+        card_loc = (CARD_CENTER[0] + CARD_SIZE[0] * RANKS.index(self.rank), 
+                    CARD_CENTER[1] + CARD_SIZE[1] * SUITS.index(self.suit))
+        canvas.draw_image(card_images, card_loc, CARD_SIZE, [pos[0] + CARD_CENTER[0], pos[1] + CARD_CENTER[1]], CARD_SIZE)
+       
+class Hand:
+    def __init__(self):
+        self.cards = []		                    # List of cards in a hand
+
+    def add_card(self, card):
+        self.cards.extend([card])
+
+    def get_value(self):		
+        value = 0
+        for x in range(len(self.cards)):	    # Calculate the number in a hand
+            value += VALUES[self.cards[x].rank]
+            
+        for x in range(len(self.cards)):	    # Calculate Aces for 11 or for 1
+            if self.cards[x].rank == 'A':
+                if value + 10 <= 21:
+                    value += 10
+        return value
+   
+    def draw(self, canvas, pos):	            # Define a position of a hand on the canvas
+        for i in range(len(self.cards)):
+            can_loc = (pos[0] + 90 * i, pos[1])
+            self.cards[i].draw(canvas, can_loc)
+
+            
+class Deck:
+    def __init__(self):
+        self.deck = []				    # List for a deck of cards
+        for x in range(len(SUITS)):
+            for i in range(len(RANKS)):
+                self.deck.append(Card(SUITS[x], RANKS[i]))
+
+    def shuffle(self):
+        self.__init__()
+        random.shuffle(self.deck)
+
+    def deal_card(self):					
+        return self.deck.pop()		            # Deal a card while deleting it out of the deck
+    
+
+# Event handlers
+def deal(number):
+    global outcome, in_play, playing_deck, player_hand, dealer_hand, next_move, p_cash, d_cash
+    if not in_play:				    # Protect from pressing deal during the active game
+        playing_deck = Deck()	# Create deck..
+        playing_deck.shuffle()
+        player_hand = Hand()	# player's..
+        dealer_hand = Hand()	# and dealer' hand
+
+        player_hand.add_card(playing_deck.deal_card())	# Starting 2 cards for both hands
+        player_hand.add_card(playing_deck.deal_card())
+        dealer_hand.add_card(playing_deck.deal_card())
+        dealer_hand.add_card(playing_deck.deal_card())
+    
+        in_play = True			# Blackjack round starts
+        outcome = ""
+        next_move = "Hit    or    Stand"
+        bet_calculation(number)	# Usual bets are going from both wallets to the pot. 
+    
+    
+def hit():
+    global outcome, in_play, score, next_move, d_cash, pot
+    if player_hand.get_value() <= 21:
+        player_hand.add_card(playing_deck.deal_card())
+    
+    if player_hand.get_value() > 21:
+        outcome = "You went bust."
+        in_play = False
+        d_cash += pot
+        pot = 0
+        check_loser()
+        next_move = "New Deal?"
+             
+
+def stand():
+    global outcome, in_play, score, next_move, p_cash, d_cash, pot
+    in_play = False
+    next_move = "New Deal?"
+    while dealer_hand.get_value() < 17:
+        dealer_hand.add_card(playing_deck.deal_card())
+        
+    if dealer_hand.get_value() > 21:
+        outcome = "Dealer went bust."
+        p_cash += pot
+        pot = 0
+        check_loser()
+    elif dealer_hand.get_value() == player_hand.get_value():
+        outcome = "It's a tie."
+    else:
+        if dealer_hand.get_value() > player_hand.get_value():
+            outcome = "Dealer wins."
+            d_cash += pot
+            pot = 0
+            check_loser()
+        else:
+            outcome = "You win."
+            p_cash += pot
+            pot = 0
+            check_loser()
+
+                
+def bet_calculation(number):
+    # Put bets from wallets of the players to the pot
+    global pot, p_cash, d_cash
+    current_bet = 0
+    if p_cash < number:
+        current_bet = p_cash
+    elif d_cash < number:
+        current_bet = d_cash
+    else:
+        current_bet = number
+        
+    p_cash -= current_bet
+    d_cash -= current_bet
+    pot += (current_bet * 2)
+
+
+def bet(number):	    # Calculate the bet and process Hit or a new Deal
+    bet_calculation(number)
+    if in_play:
+        hit()
+    else:
+        deal(0)
+                
+def timer1_handler():	    # Switch off the starting screen
+    global screen
+    screen = 21
+    timer1.stop()
+
+    
+def dot_calculation():
+# Creates 1-3 dot on a loading screen
+    global dot_number
+    multiplicator = int((dot_number % 30)//10)+ 1
+    dot_number += .6
+    return "." * multiplicator
+
+
+def loading_screen_handler():
+    global screen
+    screen = 1
+    loading_screen_timer.stop()
+    timer1.start()
+
+
+
+def mouse_handler(position):
+    global screen, choice_image, choice_size, d_cash, p_cash
+
+    if screen == 21:
+        # Screen with question for rules
+        deal(1)			# Initiate deck and hands
+        if (170 <= position[0] and position[0] <= 250) and (270 <= position[1] and position[1] <= 305):
+            screen = 22
+        elif (350 <= position[0] and position[0] <= 430) and (270 <= position[1] and position[1] <= 305):
+            screen = 3
+    
+    elif screen == 22:
+        # Screen for rules
+        if (255 <= position[0] and position[0] <= 335) and (530 <= position[1] and position[1] <= 555):
+            screen = 3      
+    
+    elif screen == 3:
+        # define the Player's choice for his image
+        choice_image = 1	# Just a placeholder for latter check for valid choice
+        if (210 <= position[0] and position[0] <= 390) and (10 <= position[1] and position[1] <= 190):
+            choice_image = p_image1
+            choice_size = p_image1_size
+        elif (410 <= position[0] and position[0] <= 590) and (10 <= position[1] and position[1] <= 190):
+            choice_image = p_image2
+            choice_size = p_image2_size
+        elif (10 <= position[0] and position[0] <= 190) and (210 <= position[1] and position[1] <= 390):
+            choice_image = p_image3
+            choice_size = p_image3_size
+        elif (210 <= position[0] and position[0] <= 390) and (210 <= position[1] and position[1] <= 390):
+            choice_image = p_image4
+            choice_size = p_image4_size
+        elif (410 <= position[0] and position[0] <= 590) and (210 <= position[1] and position[1] <= 390):
+            choice_image = p_image5
+            choice_size = p_image5_size
+        elif (10 <= position[0] and position[0] <= 190) and (410 <= position[1] and position[1] <= 590):
+            choice_image = p_image6
+            choice_size = p_image6_size
+        elif (210 <= position[0] and position[0] <= 390) and (410 <= position[1] and position[1] <= 590):
+            choice_image = p_image7
+            choice_size = p_image7_size
+        elif (410 <= position[0] and position[0] <= 590) and (410 <= position[1] and position[1] <= 590):
+            choice_image = p_image8
+            choice_size = p_image8_size
+            
+        if choice_image != 1:	# Check if valid choice was made
+            screen = 4
+
+    elif screen == 4:
+        # Game screen
+        if (350 <= position[0] and position[0] <= 400) and (135 <= position[1] and position[1] <= 185):
+            bet(5)
+        elif (410 <= position[0] and position[0] <= 460) and (135 <= position[1] and position[1] <= 185):
+            bet(10)
+        elif (470 <= position[0] and position[0] <= 520) and (135 <= position[1] and position[1] <= 185):
+            bet(25)
+        elif (530 <= position[0] and position[0] <= 580) and (135 <= position[1] and position[1] <= 185):
+            bet(50)
+            
+        if in_play:
+            if (175 <= position[0] and position[0] <= 270) and (520 <= position[1] and position[1] <= 555):
+                hit()
+            elif (340 <= position[0] and position[0] <= 435) and (520 <= position[1] and position[1] <= 555):
+                stand()
+        else:
+            if (195 <= position[0] and position[0] <= 365) and (520 <= position[1] and position[1] <= 555):
+                deal(1)
+
+    elif screen == 5:
+        # End game screen
+        if (95 <= position[0] and position[0] <= 285) and (325 <= position[1] and position[1] <= 355):
+            screen = 4
+            p_cash = 1000
+            d_cash = 1000
+            deal(1)
+                                   
+                
+def check_loser():
+    # Check if players still have money to play
+    global screen, end_text, end_text_pos
+    if p_cash == 0:
+        screen = 5
+        end_text = ["You have lost the game. Sorry.",
+                    "But don't be upset. There is a rumor", 
+                    "that the Rat is cheating.", 
+                    "Another game?"]
+        end_text_pos = [[100, 200], [100, 250], [100, 300], [100, 350]]
+    elif d_cash == 0:
+        screen = 5
+        end_text = ["Hurray! You have won!",
+                    "On the other hand, the Rat might", 
+                    "be just luring you into gambling.", 
+                    "Another game?"]
+        end_text_pos = [[100, 200], [100, 250], [100, 300], [100, 350]]
+    
+
+        
+# Drawing part    
+def draw(canvas):
+    global rot  
+               
+    if screen == 0:
+        frame.set_canvas_background("Black")
+        canvas.draw_text("Loading", [175, 250], 60, "White")
+        canvas.draw_text(dot_calculation(), [375, 250], 60, "White")
+        canvas.draw_text("Please Wait", [150, 350], 60, "White")                
+        
+    elif screen == 1:
+        # Starting screen
+        frame.set_canvas_background("Green") 
+        for x in range(len(welc_text)):
+            canvas.draw_text(welc_text[x], welc_pos[x], 65, "Black")
+        if len(rots) > 0:
+            for i in range(len(rots)):
+                canvas.draw_image(card_images, (36.5, 147), CARD_SIZE, [300, 400], CARD_SIZE, rots[i])
+        canvas.draw_image(card_images, (36.5, 147), CARD_SIZE, [300, 400], CARD_SIZE, rot)
+        if (rot * 10) // 1 % 3 == 0:
+            rots.append(rot)		# Create the list of angles
+        rot -= .02			# Periodically change the angle of the starting ace
+        
+    elif screen == 21:
+        # Screen with question for rules
+        frame.set_canvas_background("Green")
+        canvas.draw_text("Do you want to see the rules?", [100, 220], 36, "Black")
+        canvas.draw_polygon([[170, 270], [250, 270], [250, 305], [170, 305]], 2, "Black", "#BF404A")
+        canvas.draw_polygon([[350, 270], [430, 270], [430, 305], [350, 305]], 2, "Black", "#BF404A")
+        canvas.draw_text("Yes", [180, 300], 36, "Black")
+        canvas.draw_text("No", [370, 300], 36, "Black")
+
+    elif screen == 22:
+        # Screen with rules
+        frame.set_canvas_background("Green")
+        canvas.draw_polygon([[255, 530], [335, 530], [335, 555], [255, 555]], 2, "Black", "#BF404A")
+        for i in range (len(rules)):
+            canvas.draw_text(rules[i], rules_pos[i], 20, "Black")
+
+                    
+    elif screen == 3:
+        # Screen with player images
+        frame.set_canvas_background("Black")
+        canvas.draw_image(p_image1, p_image1_size[0], p_image1_size[1], [300, 100], [180, 180])
+        canvas.draw_image(p_image2, p_image2_size[0], p_image2_size[1], [500, 100], [180, 180])
+        canvas.draw_image(p_image3, p_image3_size[0], p_image3_size[1], [100, 300], [180, 180])
+        canvas.draw_image(p_image4, p_image4_size[0], p_image4_size[1], [300, 300], [180, 180])
+        canvas.draw_image(p_image5, p_image5_size[0], p_image5_size[1], [500, 300], [180, 180])
+        canvas.draw_image(p_image6, p_image6_size[0], p_image6_size[1], [100, 500], [180, 180])
+        canvas.draw_image(p_image7, p_image7_size[0], p_image7_size[1], [300, 500], [180, 180])
+        canvas.draw_image(p_image8, p_image8_size[0], p_image8_size[1], [500, 500], [180, 180])
+        canvas.draw_text("Pick", [40, 50], 50, "White")
+        canvas.draw_text("your", [40, 100], 50, "White")
+        canvas.draw_text("player", [40, 150], 50, "White")
+        
+    elif screen == 4:
+        # Screen for actual game
+        frame.set_canvas_background("Green")
+        dealer_hand.draw(canvas, [60, 200])
+        player_hand.draw(canvas, [60, 400])
+        if in_play:				# Close the "hole" card of the dealer
+            canvas.draw_image(card_back, CARD_BACK_CENTER, CARD_BACK_SIZE, [96.5, 249], CARD_SIZE)      
+        
+        canvas.draw_image(d_image, d_image_size[0], d_image_size[1], [55, 55], [110, 110])
+        canvas.draw_image(choice_image, choice_size[0], choice_size[1], [355, 55], [110, 110])
+        canvas.draw_text("Dealer", [120, 25], 30, "Black")
+        canvas.draw_text("Player", [420, 25], 30, "Black")
+        canvas.draw_image(sog_image, sog_image_size[0], sog_image_size[1], [152, 78], [64, 64])
+        canvas.draw_image(sog_image, sog_image_size[0], sog_image_size[1], [452, 78], [64, 64])
+        canvas.draw_polygon([[190, 110], [260, 110], [260, 80], [190, 80]], 1, "#60A136", "#60A136")
+        canvas.draw_polygon([[490, 110], [560, 110], [560, 80], [490, 80]], 1, "#60A136", "#60A136")
+        canvas.draw_text(str(d_cash), [195, 105], 30, "Black")
+        canvas.draw_text(str(p_cash), [495, 105], 30, "Black")
+        
+        canvas.draw_text("Bet:", [300, 165], 26, "Black")
+        canvas.draw_image(chip_image, chip_image_size[0], chip_image_size[1], [375, 160], [50, 50])
+        canvas.draw_image(chip_image, chip_image_size[0], chip_image_size[1], [435, 160], [50, 50])
+        canvas.draw_image(chip_image, chip_image_size[0], chip_image_size[1], [495, 160], [50, 50])
+        canvas.draw_image(chip_image, chip_image_size[0], chip_image_size[1], [555, 160], [50, 50])
+        canvas.draw_text("5", [370, 165], 20, "White")
+        canvas.draw_text("10", [425, 165], 20, "White")
+        canvas.draw_text("25", [485, 165], 20, "White")
+        canvas.draw_text("50", [545, 165], 20, "White")
+        
+        canvas.draw_text("Pot:", [267, 345], 30, "Black")
+        canvas.draw_polygon([[265, 385], [335, 385], [335, 355], [265, 355]], 1, "#60A136", "#60A136")
+        canvas.draw_text(str(pot), [270, 380], 30, "Black")
+        
+        canvas.draw_text(outcome, [410, 365], 26, "Black")
+        
+        canvas.draw_text("Dealer's Hand", [60, 165], 26, "Black")    
+        canvas.draw_text("Player's Hand", [60, 360], 26, "Black")
+        
+        # Question/Buttons Hit, Stand, Deal
+        if in_play:
+            canvas.draw_polygon([[175, 520], [270, 520], [270, 555], [175, 555]], 2, "Black", "#BF404A")
+            canvas.draw_polygon([[340, 520], [435, 520], [435, 555], [340, 555]], 2, "Black", "#BF404A")
+        else:
+            canvas.draw_polygon([[195, 520], [365, 520], [365, 555], [195, 555]], 2, "Black", "#BF404A")
+        canvas.draw_text(next_move, [200, 550], 36, "Black")
+        
+        # Version information
+        canvas.draw_text("Blackjack v.1.2", [515, 595], 12, "Black")
+     
+    elif screen == 5:
+        # End game screen
+        frame.set_canvas_background("Green")
+        canvas.draw_polygon([[0, 150], [600, 150], [600, 380], [0, 380]], 2, "#60A136", "#60A136")
+        canvas.draw_polygon([[95, 325], [285, 325], [285, 355], [95, 355]], 2, "Black", "#BF404A")
+        for i in range (len(end_text)):
+            canvas.draw_text(end_text[i], end_text_pos[i], 30, "Black")
+           
+
+# Frame, canvas and other registrations
+frame = simplegui.create_frame("Blackjack", 600, 600)
+frame.set_draw_handler(draw)
+frame.set_mouseclick_handler(mouse_handler)
+
+timer1 = simplegui.create_timer(5250, timer1_handler)		    # Duration of the starting screen
+#timer1 = simplegui.create_timer(1, timer1_handler)		    # Testing mode
+loading_screen_timer = simplegui.create_timer(3000.0, loading_screen_handler)
+
+# Start the frame and timer
+frame.start()
+loading_screen_timer.start()
