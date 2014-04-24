@@ -1,0 +1,1103 @@
+# Space Mission Game
+# Version 1.0
+
+import simplegui
+import math
+import random
+
+
+# Globals
+
+WIDTH = 800
+HEIGHT = 600
+score = 0
+lives = 5
+time = 0.5			        # Parameter for animated background
+half_ship = 45
+rock_group = set([])		        # All rocks on a canvas
+small_rock_group = set([])	        # All small rocks on a canvas
+turret_group = set([])		        # All turret shots on a canvas
+missile_group = set([])		        # All missiles on a canvas
+screen = 1
+game_name = [["S",[240, 225]], ["P",[320, 225]], ["A",[395, 225]], ["C",[475, 225]], ["E",[555, 225]],
+             ["N",[595, 370]], ["O",[525, 370]], ["I",[475, 370]], ["S",[405, 370]], ["S",[335, 370]],
+             ["I",[285, 370]], ["M",[185, 370]]]
+
+dot_number = 1				# Number of dots on a loading screen
+ls_ship_position = [-45, 200]		# Center position for game name screen ship
+rot_angl = 0				# Rotation angle for a ship on a loading screen
+
+rules = ["Instructions:",
+         "Arrows: Left, Right and Up - to naviate the ship",
+         "Space - fire turret, M - fire missiles",
+         "Goal of the game is to destroy asteroids while not letting them hit the ship.",
+         "You will get a rank according to the your score.",
+         "There are also special medals for some achievements."]
+rules_pos = [[30, 50], [30, 100], [30, 170], [30, 220], [30, 270], [30, 320], [30, 390], [30, 440], [30, 490], [260, 550]]
+level_screen = 1			# Level shield. 0 - off, 1 - on.
+num_level = 1				# Number of the level in game
+bought = False				# Parameter for powerful turret. True - if it is bought.
+money = 0				# Difference between scores earned and money spent.
+explosion_group = set([])	        # All explosions on a current moment
+turret_installed = False	        # Parameter (True or False) for a currently used turret
+protection = False			# Parameter for ship protection after it was hit.
+increment_factor = 1		        # Parameter for increasing of rocks speed with time and level
+num_missiles = 3
+turret_price = 5000
+missile_price = 1000
+ship_price = 10000
+shop_message = ""			# Message shown in a shop if overdraft or already bought.
+level_completed = False		        # Parameter for end level notification
+boss_life = 300
+ship_hit = False			# Parameter for a boss fight
+alive = True				# Allow to draw the ship on a screen and is used while starting new game
+boss_alive = True
+end_game_message = "You have not survived."
+transparency = 0			# Parameter for protection transparency
+a_medal = False
+b_medal = False
+s_medal = False
+a_medal_show = False
+b_medal_show = False
+s_medal_show = False
+money_before_shop = 0		        # Parameter for a b_medal check
+survivor = True				# Parameter for a s_medal check
+
+#Ranks:
+#1 - Rookie
+#2 - Private
+#3 - Corporal
+#4 - Sergeant
+#5 - Lieutenant
+#6 - Captain
+#7 - Major
+#8 - Colonel
+#9 - General
+#10 - Commander
+
+ranks = ["Rookie", "Private", "Corporal", "Sergeant", "Lieutenant", "Captain", "Major", "Colonel", "General", "Commander"]
+rank_scores = [0, 3000, 6000, 10000, 15000, 20000, 25000, 35000, 50000, 70000]
+
+
+# Class for all images
+class ImageInfo:
+    def __init__(self, center, size, radius = 0, lifespan = None, animated = False):
+        self.center = center
+        self.size = size
+        self.radius = radius
+        if lifespan:
+            self.lifespan = lifespan
+        else:
+            self.lifespan = float('inf')
+        self.animated = animated
+
+    def get_center(self):
+        return self.center
+
+    def get_size(self):
+        return self.size
+
+    def get_radius(self):
+        return self.radius
+
+    def get_lifespan(self):
+        return self.lifespan
+
+    def get_animated(self):
+        return self.animated
+
+    
+# Images    
+turret_info = ImageInfo([129.5, 97], [259, 194])
+turret_image = simplegui.load_image("https://dl.dropbox.com/s/og32p124oq6jgef/turret.jpg?d1=1")
+medal_image = simplegui.load_image("https://dl.dropbox.com/s/51w7eovadq91vlr/Bronze_Star_medal.jpg?d1=1")
+
+    
+### Art assets created by Kim Lathrop ###
+    
+debris_info = ImageInfo([320, 240], [640, 480])
+debris_image1 = simplegui.load_image("https://dl.dropbox.com/s/c2ruxynoh5y9tsx/debris2_blue.png?d1=1")
+debris_image2 = simplegui.load_image("https://dl.dropbox.com/s/4gc1qo1a00hw1wb/debris1_brown.png?d1=1")
+debris_list = [debris_image1, debris_image2]
+
+nebula_info = ImageInfo([400, 300], [800, 600])
+nebula_image1 = simplegui.load_image("https://dl.dropbox.com/s/r649b0ietgo6wp1/nebula_blue.png?d1=1")
+nebula_image2 = simplegui.load_image("https://dl.dropbox.com/s/hzgo5ae29pw1cid/nebula_brown.png?d1=1")
+nebula_list = [nebula_image1, nebula_image2]
+
+splash_info = ImageInfo([200, 150], [400, 300])
+splash_image = simplegui.load_image("http://commondatastorage.googleapis.com/codeskulptor-assets/lathrop/splash.png")
+
+ship_info = ImageInfo([45, 45], [90, 90], 35)
+ship_image = simplegui.load_image("https://dl.dropbox.com/s/mgd5yv1w0mshgje/double_ship.png?d1=1")
+
+missile_info = ImageInfo([5,5], [10, 10], 3, 35)
+missile_image1 = simplegui.load_image("https://dl.dropbox.com/s/yfl78arzp0juj93/shot1.png?d1=1")
+missile_image2 = simplegui.load_image("https://dl.dropbox.com/s/0eb4lcz4sshgxtr/shot2.png?d1=1")
+
+missile3_info = ImageInfo([10, 10], [20, 20], 10, 35)
+missile_image3 = simplegui.load_image("https://dl.dropbox.com/s/is43bkuo6wabkya/shot3.png?d1=1")
+
+asteroid_info = ImageInfo([45, 45], [90, 90], 40)
+small_asteroid_info = ImageInfo([45, 45], [90, 90], 25)
+asteroid_image1 = simplegui.load_image("https://dl.dropbox.com/s/wo97zri3mmoiib3/asteroid_blend.png?d1=1")
+asteroid_image2 = simplegui.load_image("https://dl.dropbox.com/s/0kz5plzuh7p2v5h/asteroid_blue.png?d1=1")
+asteroid_image3 = simplegui.load_image("https://dl.dropbox.com/s/rl6ku7xbgqaursp/asteroid_brown.png?d1=1")
+asteroid_list = [asteroid_image1, asteroid_image2, asteroid_image3]
+
+explosion_info = ImageInfo([64, 64], [128, 128], 17, 24, True)
+explosion_image1 = simplegui.load_image("https://dl.dropbox.com/s/we198pebvbq1wwq/explosion_alpha.png?d1=1")
+explosion_image2 = simplegui.load_image("https://dl.dropbox.com/s/mopzeg82lpev0n8/explosion_blue.png?d1=1")
+explosion_image3 = simplegui.load_image("https://dl.dropbox.com/s/hdjm85koy9hulmy/explosion_blue2.png?d1=1")
+explosion_image4 = simplegui.load_image("https://dl.dropbox.com/s/5miu4qwck2wl3h9/explosion_orange.png?d1=1")
+explosion_list = [explosion_image2, explosion_image3]
+
+
+# Sounds
+soundtrack = simplegui.load_sound("https://dl.dropbox.com/s/abhhtuxqxgwwy9b/soundtrack.mp3?d1=1")
+missile_sound = simplegui.load_sound("https://dl.dropbox.com/s/8pfn3aduuceb34e/missile.mp3?d1=1")
+missile_sound.set_volume(.5)
+ship_thrust_sound = simplegui.load_sound("https://dl.dropbox.com/s/eyiakt24f2od5iu/thrust.mp3?d1=1")
+explosion_sound = simplegui.load_sound("https://dl.dropbox.com/s/hadkmzkzpku9r5f/explosion.mp3?d1=1")
+
+
+# Helper functions
+
+def angle_to_vector(ang):
+    return [math.cos(ang), math.sin(ang)]
+
+
+def dist(p, q):
+    return math.sqrt((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2)
+
+
+def key_down(key):
+    if (screen == 4 or screen == 6) and level_screen == 0 and alive:
+        for i in inputs:
+            if key == simplegui.KEY_MAP[i]:
+                if i in buttons:
+                    if not buttons[i]:
+                        buttons[i] = True
+                        inputs[i]()
+                else:
+                    inputs[i]()
+
+                    
+def key_up(key):
+    if (screen == 4 or screen == 6) and level_screen == 0 and alive:
+        for i in outputs:
+            if key == simplegui.KEY_MAP[i]:
+                if buttons[i]:
+                    buttons[i] = False
+                    outputs[i]()
+
+                    
+def fire_turret():
+    if not turret_installed:
+        current_image = missile_image1
+    else:
+        current_image = missile_image2
+    new_turret = Sprite([my_ship.pos[0] + my_ship.forward[0] * half_ship,
+                       my_ship.pos[1] + my_ship.forward[1] * half_ship],
+                       my_ship.angle, current_image, missile_info, 
+                       [my_ship.vel[0] + my_ship.forward[0] * 8, 
+                       my_ship.vel[1] + my_ship.forward[1] * 8], 
+                       0, missile_sound)
+                        # All numbers are random. I have just chosen what have seen appropriate.
+    turret_group.add(new_turret)
+
+
+def fire_missile():
+    global boom, num_missiles
+    if len(missile_group) == 0 and num_missiles > 0:    
+        new_missile = Sprite([my_ship.pos[0] + my_ship.forward[0] * half_ship,
+                       my_ship.pos[1] + my_ship.forward[1] * half_ship],
+                       my_ship.angle, missile_image3, missile3_info, 
+                       [my_ship.vel[0] + my_ship.forward[0] * 8, 
+                       my_ship.vel[1] + my_ship.forward[1] * 8], 
+                       0, missile_sound)
+                        # All numbers are random. I have just chosen what have seen appropriate.
+        boom = False		
+        # boom - parameter used in missile collision. True - big explosion already performed, False - not yet.
+        missile_group.add(new_missile)
+        num_missiles -= 1
+
+            
+def process_sprite_group(canvas, group):
+    outdated = set([])
+    for object in group:
+        object.update()
+        object.draw(canvas)
+        if object.age >= object.lifespan:
+            outdated.add(object)
+    group.difference_update(outdated)
+
+
+# Collide function for a boss    
+def collide(obj, other_object, splash = None):
+    global boss_life, ship_hit
+    num_small_rocks = 0
+    current_hit = 0
+    if obj.collide(other_object, splash):
+        if other_object.image == ship_image:
+            ship_hit = True 
+        else:
+            if other_object.image == missile_image3:
+                current_hit = 10
+            elif other_object.image == missile_image2:
+                current_hit = 3
+            elif other_object.image == missile_image1:
+                current_hit = 1
+
+            if obj.image == ship_image or other_object.image == ship_image or obj.image == missile_image1 or other_object.image == missile_image1:
+                current_image = explosion_image1
+            elif obj.image == missile_image2 or other_object.image == missile_image2:
+                current_image = explosion_list[random.randrange(len(explosion_list))]
+            elif obj.image == missile_image3 or other_object.image == missile_image3:
+                current_image = explosion_image4               
+            new_explosion = Sprite(obj.pos, 0, current_image, explosion_info, [0, 0], 0, explosion_sound)
+            explosion_group.add(new_explosion)                
+            other_object.age += 35
+            current_asteroid = asteroid_list[random.randrange(len(asteroid_list))]
+            spawn_small_rock(cool_boss.pos, current_asteroid, 3)
+            
+            if boss_life - current_hit >= 0:
+                boss_life -= current_hit
+                
+                
+def group_collide(group, other_object, splash = None):
+    global boom, boss_life
+    collided_group = set([])
+    for obj in group:
+        if obj.collide(other_object, splash):		            
+            if other_object.image == missile_image1 and group == rock_group:
+                spawn_small_rock(obj.pos, obj.image, 2)
+            if (obj.image == missile_image3 or other_object.image == missile_image3) and boom != True:
+                boom = True
+                group_collide(rock_group, other_object, 250)
+                group_collide(small_rock_group, other_object, 250)
+                collide(cool_boss, other_object, 250)
+                other_object.age += 35
+            else:    
+                collided_group.add(obj)
+            
+                if obj.image == ship_image or other_object.image == ship_image or obj.image == missile_image1 or other_object.image == missile_image1:
+                    current_image = explosion_image1
+                elif obj.image == missile_image2 or other_object.image == missile_image2:
+                    current_image = explosion_list[random.randrange(len(explosion_list))]
+                elif obj.image == missile_image3 or other_object.image == missile_image3:
+                    current_image = explosion_image4               
+                        
+                new_explosion = Sprite(obj.pos, 0, current_image, explosion_info, [0, 0], 0, explosion_sound)
+                explosion_group.add(new_explosion)
+
+    group.difference_update(collided_group)
+    return len(collided_group)
+
+
+def group_group_collide(group1, group2, splash = None):
+    number_collisions = 0
+    collided_group = set([])
+    for obj in group1:
+        if group_collide(group2, obj, splash) > 0:
+            collided_group.add(obj)
+    group1.difference_update(collided_group)
+    return number_collisions
+
+
+def random_picture():
+    global current_nebula, current_debris
+    current_nebula = nebula_list[random.randrange(len(nebula_list))]
+    current_debris = debris_list[random.randrange(len(debris_list))]
+
+
+def game_name_positioning():
+    global additional_distance
+    for x in range(len(game_name)):
+        game_name[x][1][0] = right_game_name_position[x][1][0] + additional_distance * right_game_name_position[x][2]
+        game_name[x][1][1] = right_game_name_position[x][1][1] + additional_distance * right_game_name_position[x][2]
+    if additional_distance > 0:
+        additional_distance -= 3
+
+
+def dot_calculation():
+# Creates 1-3 dot on a loading screen
+    global dot_number
+    multiplicator = int((dot_number % 30) // 10) + 1
+    dot_number += .6
+    return "." * multiplicator
+
+
+def start_image_pos():
+# Flying ship on a game name screen and appearing letters
+    global rot_angl
+    if ls_ship_position[1] == 200:
+        if ls_ship_position[0] < WIDTH * 1.1:
+            ls_ship_position[0] += 3
+        else:
+            ls_ship_position[1] = 350
+            rot_angl = 3.15
+    else:
+        ls_ship_position[0] -= 3
+
+        
+def letters_check():
+    # Checks for number of letters on loading screen
+    global num_letters
+    num_letters = 0				    # Number of letters on a loading screen
+    if ls_ship_position[1] == 200:
+        for position in range(5):
+            if game_name[position][1][0] + 70 <  ls_ship_position[0]:
+                num_letters += 1
+    else:
+        num_letters = 5	
+        for position in range(5,12):
+            if game_name[position][1][0] >  ls_ship_position[0] + 40:
+                num_letters += 1
+    return num_letters
+
+
+def clean_screen():
+    global rock_group, small_rock_group, turret_group, missile_group
+    rock_group = set([])
+    small_rock_group = set([])
+    turret_group = set([])
+    missile_group = set([])
+
+
+def centered_ship():
+    my_ship.pos = [WIDTH / 2, HEIGHT / 2]
+    my_ship.vel = [0, 0]
+    my_ship.angle_vel = 0
+    my_ship.angle = 0
+    my_ship.image_center[0] = 45
+    my_ship.thrust = False     
+    for x in buttons:
+        buttons[x] = False
+
+
+def check_lose():
+    global alive
+    if lives < 1:
+        level_timer.stop()
+        rock_spawner_timer.stop()
+        end_game_timer.start()
+        clean_screen()        
+        centered_ship()
+        alive = False
+        ship_thrust_sound.rewind() 
+        
+
+def check_win():
+    global boss_alive
+    if boss_life < 1:
+        level_timer.stop()
+        rock_spawner_timer.stop()
+        end_game_timer.start()
+        clean_screen()        
+        boss_alive = False
+        
+
+def get_transparency():
+    global transparency
+    current_transparency = transparency / 10.0
+    transparency = (transparency + 1) % 10
+    return "rgba(0, 0, 255, " + str(current_transparency) + ")"
+
+
+def medal_message():
+    if a_medal or b_medal or s_medal:
+        message = "Click to find out about medals."
+    else:
+        message = "You haven't earned any medals."
+    return message
+        
+
+def next_game_message():
+    if alive:
+        message = "Do you want to continue?"
+    else:
+        message = "Do you want to try again?"
+    return message
+
+
+def show_medal_off():
+    global a_medal_show, s_medal_show, b_medal_show
+    a_medal_show = False
+    s_medal_show = False
+    b_medal_show = False
+
+
+def clear_stats():
+    global alive, lives, num_missiles, score, money
+    alive = True
+    lives = 5
+    num_missiles = 3
+    score = 0
+    money = 0
+
+
+def check_b_medal():
+    global b_medal
+    if money_before_shop - money >= 50000:
+        b_medal = True
+
+
+def zero_medals():
+    global a_medal, b_medal, s_medal
+    a_medal = False
+    b_medal = False
+    s_medal = False
+
+
+def get_rank():
+    current_index = -1
+    for x in range(len(rank_scores) - 1):
+        if score >= rank_scores[x] and score < rank_scores[x+1]:
+            current_index = x
+    if current_index < 0:
+        current_index = 9
+    return ranks[current_index]
+            
+    
+# Mouse click handler
+def click(pos):
+    global screen, lives, money, turret_installed, bought, num_missiles, shop_message, survivor
+    global level_screen, a_medal_show, s_medal_show, b_medal_show, num_level, money_before_level, s_medal
+    global boss_alive, boss_life
+        
+    if screen == 3:
+        if pos[0] > 345 and pos[0] < 425 and pos[1] > 505 and pos[1] < 532:
+            random_picture()
+            screen = 4
+            level_name_timer.start()
+    
+    if screen == 5:
+        if pos[0] > 110 and pos[0] < 190 and pos[1] > 130 and pos[1] < 210:
+            if (not turret_installed) and money >= turret_price:
+                money -= turret_price
+                turret_installed = True
+                bought = True
+            else:
+                if turret_installed:
+                    shop_message = "Already installed."
+                    shop_message_timer.start()
+                else:
+                    shop_message = "Not enough money."
+                    shop_message_timer.start()
+
+        elif pos[0] > 110 and pos[0] < 190 and pos[1] > 225 and pos[1] < 305:
+            if money >= missile_price:
+                money -= missile_price
+                num_missiles += 1
+            else:
+                shop_message = "Not enough money."
+                shop_message_timer.start()
+        
+        elif pos[0] > 110 and pos[0] < 190 and pos[1] > 320 and pos[1] < 400:
+            if money >= ship_price:
+                money -= ship_price
+                lives += 1
+            else:
+                shop_message = "Not enough money."
+                shop_message_timer.start()
+
+        elif pos[0] > 325 and pos[0] < 535 and pos[1] > 550 and pos[1] < 577:
+            if num_level <= 3:
+                random_picture()
+                screen = 4
+                
+            else:
+                random_picture()
+                screen = 6
+                if survivor:
+                    s_medal = True
+        
+            money_before_level = money
+            level_screen = 1        
+            level_name_timer.start()
+            check_b_medal()
+            
+
+    if screen == 7:
+        if (a_medal and (not a_medal_show) and (not s_medal_show) and (not b_medal_show) and
+         (pos[0] > 130 and pos[0] < 230 and pos[1] > 340 and pos[1] < 460)):
+            a_medal_show = True
+        elif (pos[0] > 330 and pos[0] < 430 and pos[1] > 340 and pos[1] < 460 and s_medal 
+            and (not a_medal_show) and (not s_medal_show) and (not b_medal_show)):
+            s_medal_show = True
+        elif (pos[0] > 530 and pos[0] < 630 and pos[1] > 340 and pos[1] < 460 and b_medal 
+            and (not a_medal_show) and (not s_medal_show) and (not b_medal_show)):
+            b_medal_show = True
+
+        elif ((pos[0] > 90 and pos[0] < 645 and pos[1] > 360 and pos[1] < 390) and a_medal 
+            and a_medal_show):
+            show_medal_off()
+        elif ((pos[0] > 150 and pos[0] < 660 and pos[1] > 360 and pos[1] < 390) and s_medal 
+            and s_medal_show):
+            show_medal_off()
+        elif ((pos[0] > 60 and pos[0] < 710 and pos[1] > 360 and pos[1] < 390) and b_medal 
+            and b_medal_show):
+            show_medal_off()            
+            
+        elif pos[0] > 315 and pos[0] < 525 and pos[1] > 560 and pos[1] < 587:
+            if not alive:
+                clear_stats()
+                zero_medals()
+            screen = 4
+            num_level = 1
+            level_screen = 1
+            level_name_timer.start()
+            money_before_level = money
+            survivor = True
+            boss_alive = True
+            boss_life = 300
+               
+                
+#Timer Handlers              
+                
+def spawn_rock():
+    global rock_group, turret_group
+    rand_position = [random.randrange(WIDTH), random.randrange(HEIGHT)]
+    while dist(rand_position, my_ship.pos) < 150:
+        rand_position = [random.randrange(WIDTH), random.randrange(HEIGHT)]
+    if screen == 4 and level_screen == 0:
+        current_asteroid = asteroid_list[random.randrange(len(asteroid_list))]
+        new_rock = Sprite(rand_position, 0, current_asteroid, asteroid_info,
+                      [(random.randrange(-1, 2) + 0.1) * increment_factor * (num_level / 10 + 1),
+                       (random.randrange(-1, 2) + 0.1) * increment_factor * (num_level / 10 + 1)], 
+                       random.randrange(-1, 2) * 0.03)
+                       # All numbers are random. I have just chosen what have seen appropriate.
+        if len(rock_group) < 12:
+            rock_group.add(new_rock)
+
+        
+def spawn_small_rock(pos, image, number):
+    global small_rock_group
+    for x in range(number):
+        new_small_rock = Sprite(pos, 0, image, small_asteroid_info,
+                      [random.randrange(-1, 2), random.randrange(-1, 2)], 
+                       random.randrange(-1, 2) * 0.03, None, 1)
+                       # All numbers are random. I have just chosen what have seen appropriate.
+        if len(small_rock_group) < 6:
+            small_rock_group.add(new_small_rock)    
+                
+        
+def loading_screen_handler():
+    global screen
+    screen = 2
+    loading_screen_timer.stop()
+    game_name_timer.start()
+
+        
+def game_name_handler():
+    global screen
+    screen = 3
+    game_name_timer.stop()   
+
+    
+def level_name_handler():
+    global level_screen, money_before_level
+    level_screen = 0
+    level_name_timer.stop()
+    soundtrack.play()
+    centered_ship()
+    if num_level <= 3:
+        rock_spawner_timer.start()
+        velocity_increment_timer.start()
+        level_timer.start()
+
+    
+def protection_handler():
+    global protection
+    protection = False
+    protection_timer.stop()
+
+
+def velocity_increment_handler():
+    global increment_factor
+    increment_factor *= 1.2
+        
+
+def level_handler():
+    global level_completed
+    level_completed = True
+    level_timer.stop()
+    rock_spawner_timer.stop()
+    end_level_timer.start()
+    clean_screen()
+
+
+def end_level_handler():
+    global screen, num_level, level_completed, money_before_shop
+    num_level += 1
+    screen = 5    
+    soundtrack.rewind()
+    ship_thrust_sound.rewind()
+    end_level_timer.stop()
+    level_completed = False
+    money_before_shop = money
+        
+    
+def shop_message_handler():
+    global shop_message
+    shop_message_timer.stop()
+    shop_message = ""
+
+
+def end_game_handler():
+    global screen, end_game_message, money, score
+    screen = 7
+    soundtrack.rewind()
+    end_game_timer.stop()
+    if alive:
+        end_game_message = "Congratulations. You have won."
+        money += 15000
+        score += 15000
+    ship_thrust_sound.rewind()
+
+    
+# Classes
+    
+class Ship:
+    def __init__(self, pos, vel, angle, image, info):
+        self.pos = [pos[0],pos[1]]
+        self.vel = [vel[0],vel[1]]
+        self.thrust = False
+        self.angle = angle
+        self.angle_vel = 0
+        self.image = image
+        self.image_center = info.get_center()
+        self.image_size = info.get_size()
+        self.radius = info.get_radius()
+        self.forward = angle_to_vector(self.angle)
+        
+    def draw(self,canvas):
+        canvas.draw_image(self.image, self.image_center, self.image_size, 
+                          self.pos, self.image_size, self.angle)
+        
+    def update(self):
+        for x in range(len(self.pos)):
+            self.pos[x] += self.vel[x]		# Movement of a ship
+        self.angle += self.angle_vel		# Rotation of a ship
+        
+        # Calculation of movement vector and velocity
+        self.forward = angle_to_vector(self.angle)
+        if self.thrust:
+            self.vel[0] += self.forward[0] * 0.08
+            self.vel[1] += self.forward[1] * 0.08
+
+        # Keep ship on a canvas
+        if self.pos[0] > WIDTH or self.pos[0] < 0:
+            self.pos[0] %= WIDTH
+        if self.pos[1] > HEIGHT or self.pos[1] < 0:
+            self.pos[1] %= HEIGHT
+
+        # Friction
+        self.vel[0] *= 0.98
+        self.vel[1] *= 0.98
+        
+    # Numbers for trning are random. I have just chosen what have seen appropriate. 
+    def turn_left(self):
+        self.angle_vel -= 0.08
+    def turn_right(self):
+        self.angle_vel += 0.08
+        
+    def thrust_pedal(self):
+        if self.thrust:
+            self.thrust = False
+            self.image_center[0] -= 90		# Center of the image with thrust
+            ship_thrust_sound.rewind()
+        else:
+            self.thrust = True
+            # 90 - Length of a first image in a tile
+            # So by adding 90 the second tile is chosen
+            self.image_center[0] += 90            
+            ship_thrust_sound.play()
+
+    def shoot(self):
+        fire_turret()
+    
+    def shoot_missile(self):
+        fire_missile()
+    
+
+class Sprite:
+    def __init__(self, pos, ang, image, info, vel = [5, 5], ang_vel = 0, sound = None, small_size = 0):
+        self.pos = [pos[0],pos[1]]
+        self.vel = [vel[0],vel[1]]
+        self.angle = ang
+        self.angle_vel = ang_vel
+        self.image = image
+        self.image_center = info.get_center()
+        self.image_size = info.get_size()
+        self.radius = info.get_radius()
+        self.lifespan = info.get_lifespan()
+        self.animated = info.get_animated()
+        self.age = 0
+        if sound:
+            sound.rewind()
+            sound.play()
+        if small_size > 0:
+            self.drawn_size = [50, 50]
+        else:
+            self.drawn_size = info.get_size()
+   
+    def draw(self, canvas):
+        if self.animated:
+            canvas.draw_image(self.image, [self.image_center[0] + self.image_size[0] * self.age, self.image_center[1]], self.image_size, self.pos, self.image_size, self.angle)
+        else:
+            canvas.draw_image(self.image, self.image_center, self.image_size, self.pos, self.drawn_size, self.angle)
+    
+    def update(self):
+        self.pos[0] += self.vel[0]		# Movement
+        self.pos[1] += self.vel[1]        
+        
+        # Keep objects on the canvas
+        if self.pos[0] > WIDTH or self.pos[0] < 0:
+            self.pos[0] %= WIDTH
+        if self.pos[1] > HEIGHT or self.pos[1] < 0:
+            self.pos[1] %= HEIGHT      
+        self.angle += self.angle_vel	# Rotation
+        
+        self.age += 1
+    
+    def collide(self, other_object, splash = None):
+        if splash:
+            range = dist(self.pos, other_object.pos) - splash
+        else:
+            range = dist(self.pos, other_object.pos)
+        if range <= self.radius + other_object.radius:
+            return True
+        else:
+            return False
+
+
+class Boss:
+    def __init__(self):
+        self.pos = [WIDTH / 2, 0]
+        self.vel = [1.2, 1.2]
+        self.angle = 0
+        self.angle_vel = 0.02
+        self.image = asteroid_list[random.randrange(len(asteroid_list))]
+        self.image_center = [45, 45]
+        self.image_size = [90, 90]
+        self.radius = 70
+        self.drawn_size = [140, 140]
+   
+    def draw(self, canvas):
+        canvas.draw_image(self.image, self.image_center, self.image_size, self.pos, self.drawn_size, self.angle)
+    
+    def update(self):
+        # Movement towards the ship
+        if self.pos[0] >= my_ship.pos[0]:
+            self.pos[0] -= self.vel[0]
+        else:
+            self.pos[0] += self.vel[0]
+        
+        if self.pos[1] >= my_ship.pos[1]:
+            self.pos[1] -= self.vel[1]
+        else:
+            self.pos[1] += self.vel[1]       
+        
+        # Keep asteroids on the canvas
+        if self.pos[0] > WIDTH or self.pos[0] < 0:
+            self.pos[0] %= WIDTH
+        if self.pos[1] > HEIGHT or self.pos[1] < 0:
+            self.pos[1] %= HEIGHT
+            
+        self.angle += self.angle_vel	# Rotation
+            
+    def collide(self, other_object, splash = None):
+        if splash:
+            range = dist(self.pos, other_object.pos) - splash
+        else:
+            range = dist(self.pos, other_object.pos)
+        if range <= self.radius + other_object.radius:
+            return True
+        else:
+            return False
+        
+      
+# All drawings    
+               
+def draw(canvas):
+    global time, lives, money, protection, ship_hit, survivor, a_medal, score
+
+# Screens:
+# 1 - Loading screen
+# 2 - Game name screen
+# 3 - Instructions
+# 4 - Game screen
+# 5 - Shop screen
+# 6 - Boss Level
+# 7 - End screen
+
+    if screen == 1:
+        frame.set_canvas_background("Black")
+        canvas.draw_text("Loading", [275, 250], 60, "White")
+        canvas.draw_text(dot_calculation(), [475, 250], 60, "White")
+        canvas.draw_text("Please Wait", [250, 350], 60, "White")
+
+    elif screen == 2:
+        canvas.draw_image(nebula_image1, nebula_info.get_center(), nebula_info.get_size(), [WIDTH / 2, HEIGHT / 2], [WIDTH, HEIGHT])
+        start_image_pos()
+        canvas.draw_image(ship_image, [135, 45], [90, 90], ls_ship_position, [120, 120], rot_angl)
+        letters_check()
+        for x in range(num_letters):
+            canvas.draw_text(game_name[x][0], game_name[x][1], 80, "#fff34c")
+    
+    elif screen == 3:
+        canvas.draw_image(nebula_image1, nebula_info.get_center(), nebula_info.get_size(), [WIDTH / 2, HEIGHT / 2], [WIDTH, HEIGHT])
+        canvas.draw_polygon([[345, 505], [425, 505], [425, 532], [345, 532]], 2, "White", "rgba(254, 243, 78, 0.0)")
+        canvas.draw_text("Continue", (350 ,525), 20, "White")
+        for i in range (len(rules)):
+            canvas.draw_text(rules[i], rules_pos[i], 24, "#85C9D6")
+        
+    elif screen == 4:
+        # animiate background
+        time += 1
+        center = debris_info.get_center()
+        size = debris_info.get_size()
+        wtime = (time / 8) % center[0]
+        canvas.draw_image(current_nebula, nebula_info.get_center(), nebula_info.get_size(), [WIDTH / 2, HEIGHT / 2], [WIDTH, HEIGHT])
+        canvas.draw_image(current_debris, [center[0] - wtime, center[1]], [size[0] - 2 * wtime, size[1]], 
+                                [WIDTH / 2 + 1.25 * wtime, HEIGHT / 2], [WIDTH - 2.5 * wtime, HEIGHT])
+        canvas.draw_image(current_debris, [size[0] - wtime, center[1]], [2 * wtime, size[1]], 
+                                [1.25 * wtime, HEIGHT / 2], [2.5 * wtime, HEIGHT])        
+                
+        if level_screen == 1:
+            canvas.draw_text("Level: " + str(num_level), (310 ,250), 60, "#fff34c")
+        else:
+            if alive:
+                my_ship.draw(canvas)    
+   
+            initial_num_rocks = len(rock_group)
+            total_num_rocks = len(rock_group) + len(small_rock_group)
+            process_sprite_group(canvas, turret_group)
+            process_sprite_group(canvas, missile_group)
+            process_sprite_group(canvas, rock_group)
+            process_sprite_group(canvas, small_rock_group)            
+            group_group_collide(turret_group, rock_group)
+            group_group_collide(turret_group, small_rock_group)
+            group_group_collide(missile_group, rock_group)
+            group_group_collide(missile_group, small_rock_group)            
+            process_sprite_group(canvas, explosion_group)
+            money += (initial_num_rocks - len(rock_group)) * 100
+            score += (initial_num_rocks - len(rock_group)) * 100
+            
+            if total_num_rocks - (len(rock_group) + len(small_rock_group)) >= 10:
+                a_medal = True
+            
+            if group_collide(rock_group, my_ship) + group_collide(small_rock_group, my_ship) > 0:
+                if not protection:
+                    lives -= 1
+                    protection = True
+                    protection_timer.start()
+                    survivor = False
+            
+            if protection and alive:
+                canvas.draw_circle(my_ship.pos, my_ship.radius + 15, 4, get_transparency())
+            
+            if level_completed:
+                canvas.draw_text("Level Completed", (210 ,250), 60, "#fff34c")
+            
+            my_ship.update()        
+    
+            # draw UI
+            canvas.draw_text("Lives", [50, 50], 22, "White")
+            canvas.draw_text(str(lives), [50, 80], 22, "White")
+            canvas.draw_text("Missiles", [50, 110], 22, "White")
+            canvas.draw_text(str(num_missiles), [50, 140], 22, "White")
+                      
+            canvas.draw_text("Money", [660, 50], 22, "White")
+            canvas.draw_text(str(money), [660, 80], 22, "White")
+            canvas.draw_text(get_rank(), [660, 110], 22, "White")
+
+            check_lose()
+            
+    elif screen == 5:
+        frame.set_canvas_background("Green")       
+        canvas.draw_polygon([[30, 30], [770, 30], [770, 530], [30, 530]], 2, "#1F475C", "#1F475C")
+        canvas.draw_polygon([[60, 60], [740, 60], [740, 500], [60, 500]], 2, "Green", "Green")
+        canvas.draw_text("AMMUNITION SHOP", [230, 105], 40, "Black")
+        
+        canvas.draw_image(turret_image, turret_info.get_center(), turret_info.get_size(), [150, 170], [80, 80])
+        canvas.draw_polygon([[110, 225], [190, 225], [190, 305], [110, 305]], 2, "Black", "Black")
+        canvas.draw_image(missile_image3, missile3_info.get_center(), missile3_info.get_size(), [150, 260], [60, 60])
+        canvas.draw_polygon([[110, 320], [190, 320], [190, 400], [110, 400]], 2, "Black", "Black")
+        canvas.draw_image(ship_image, ship_info.get_center(), ship_info.get_size(), [145, 360], [70, 70])
+    
+        canvas.draw_polygon([[325, 550], [535, 550], [535, 577], [325, 577]], 2, "Black", "Black")
+        canvas.draw_text("Continue to the next level", (330 ,570), 20, "Yellow")
+        
+        canvas.draw_polygon([[190, 131], [690, 131], [690, 209], [190, 209]], 2, "#1F475C", "#1F475C")
+        canvas.draw_polygon([[190, 225], [690, 225], [690, 305], [190, 305]], 2, "#1F475C", "#1F475C")
+        canvas.draw_polygon([[190, 320], [690, 320], [690, 400], [190, 400]], 2, "#1F475C", "#1F475C")
+        canvas.draw_polygon([[110, 415], [690, 415], [690, 485], [110, 485]], 2, "#1F475C", "#1F475C")
+        canvas.draw_polyline([[WIDTH/2, 415], [WIDTH/2, 485]], 2, "Black")
+        
+        canvas.draw_text("More powerful version of your current turret.", [200, 160], 20, "Black")
+        if bought:
+            canvas.draw_text("Already bought.", [200, 190], 20, "Black")
+        else:
+            canvas.draw_text("Price: " + str(turret_price), [200, 190], 20, "Black")
+            
+        canvas.draw_text("HE Missiles. Use it against groups of rocks.", [200, 254], 20, "Black")
+        canvas.draw_text("Price: " + str(missile_price), [200, 284], 20, "Black")
+
+        canvas.draw_text("Additional ship. Just to be sure you'll survive another round.", [200, 350], 20, "Black")
+        canvas.draw_text("Price: " + str(ship_price), [200, 380], 20, "Black")
+
+        canvas.draw_text("Your money: " + str(money), [135, 440], 20, "Black")
+        canvas.draw_text("Lives : " + str(lives), [135, 470], 20, "Black")
+        canvas.draw_text("Missiles : " + str(num_missiles), [250, 470], 20, "Black")
+        canvas.draw_text("Click the picture to buy an item.", [420, 440], 20, "Black")        
+        canvas.draw_text(shop_message, [420, 470], 20, "Red")
+
+    elif screen == 6:
+        # animiate background
+        time += 1
+        center = debris_info.get_center()
+        size = debris_info.get_size()
+        wtime = (time / 8) % center[0]
+        canvas.draw_image(current_nebula, nebula_info.get_center(), nebula_info.get_size(), [WIDTH / 2, HEIGHT / 2], [WIDTH, HEIGHT])
+        canvas.draw_image(current_debris, [center[0] - wtime, center[1]], [size[0] - 2 * wtime, size[1]], 
+                                [WIDTH / 2 + 1.25 * wtime, HEIGHT / 2], [WIDTH - 2.5 * wtime, HEIGHT])
+        canvas.draw_image(current_debris, [size[0] - wtime, center[1]], [2 * wtime, size[1]], 
+                                [1.25 * wtime, HEIGHT / 2], [2.5 * wtime, HEIGHT])  
+
+        if level_screen == 1:
+            canvas.draw_text("Boss Level", (280 ,250), 60, "#fff34c")
+        else:
+            # draw ship and sprites
+            if alive:
+                my_ship.draw(canvas) 
+            if boss_alive:
+                cool_boss.draw(canvas)
+            process_sprite_group(canvas, turret_group)
+            process_sprite_group(canvas, missile_group)
+            process_sprite_group(canvas, small_rock_group)
+            
+            for x in missile_group:
+                collide(cool_boss, x)
+            for x in turret_group:
+                collide(cool_boss, x)
+            collide(cool_boss, my_ship)
+            group_group_collide(turret_group, small_rock_group)
+            group_group_collide(missile_group, small_rock_group)            
+            
+            if (group_collide(small_rock_group, my_ship) > 0) or ship_hit:
+                if not protection:
+                    lives -= 1
+                    protection = True
+                    protection_timer.start()
+                ship_hit = False
+            
+            if protection and alive:
+                canvas.draw_circle(my_ship.pos, my_ship.radius + 15, 4, get_transparency())
+
+            process_sprite_group(canvas, explosion_group)                
+                
+            my_ship.update()
+            if boss_alive:
+                cool_boss.update()
+
+            # draw UI
+            canvas.draw_text("Lives", [50, 50], 22, "White")
+            canvas.draw_text(str(lives), [50, 80], 22, "White")
+            canvas.draw_text("Missiles", [50, 110], 22, "White")
+            canvas.draw_text(str(num_missiles), [50, 140], 22, "White")
+                      
+            canvas.draw_text("Money", [680, 50], 22, "White")
+            canvas.draw_text(str(money), [680, 80], 22, "White")
+            canvas.draw_text("Rookie", [680, 110], 22, "White")
+
+            canvas.draw_text("Boss Life", [350, 50], 22, "White")
+            canvas.draw_polygon([[240, 60], [(240 + boss_life), 60], [(240 + boss_life), 85], [240, 85]], 2, "Red", "Red")
+            canvas.draw_polyline([[240, 60], [540, 60], [540, 85], [240, 85], [240, 60]], 4, "Blue")            
+
+            check_lose()
+            check_win()
+
+    elif screen == 7:
+        frame.set_canvas_background("Green")
+        canvas.draw_text(end_game_message, [90, 70], 50, "Yellow")        
+        canvas.draw_text("You have earned " + str(score) + " scores.", [120, 200], 40, "White")
+        canvas.draw_text("Your current rank is " + get_rank() + " .", [120, 270], 40, "White")
+        canvas.draw_polyline([[0, 150], [WIDTH, 150]], 20, "#1F475C")
+        canvas.draw_polyline([[0, 300], [WIDTH, 300]], 20, "#1F475C")
+        canvas.draw_polyline([[0, 535], [WIDTH, 535]], 20, "#1F475C")        
+        
+        canvas.draw_polygon([[120, 330], [240, 330], [240, 470], [120, 470]], 2, "Black", "Black")
+        canvas.draw_polygon([[320, 330], [440, 330], [440, 470], [320, 470]], 2, "Black", "Black")
+        canvas.draw_polygon([[520, 330], [640, 330], [640, 470], [520, 470]], 2, "Black", "Black")
+        
+        if a_medal:
+            canvas.draw_image(medal_image, [168.5, 299.5], [337, 599], [180, 400], [100, 120])
+        if s_medal:
+            canvas.draw_image(medal_image, [168.5, 299.5], [337, 599], [380, 400], [100, 120])
+        if b_medal:
+            canvas.draw_image(medal_image, [168.5, 299.5], [337, 599], [580, 400], [100, 120])
+                    
+        canvas.draw_text(medal_message(), [300, 510], 20, "Yellow")
+        canvas.draw_polygon([[315, 560], [525, 560], [525, 587], [315, 587]], 2, "Black", "Black")
+        canvas.draw_text(next_game_message(), (320 ,580), 20, "Yellow")
+        
+        if a_medal_show or b_medal_show or s_medal_show:
+            if a_medal_show:
+                canvas.draw_polygon([[90, 360], [645, 360], [645, 390], [90, 390]], 2, "Blue", "Black")
+                canvas.draw_text("Annihilation medal - for destroing 10 or more rocks with one strike.", (100 ,380), 20, "Yellow")
+            elif s_medal_show:
+                canvas.draw_polygon([[150, 360], [660, 360], [660, 390], [150, 390]], 2, "Blue", "Black")                
+                canvas.draw_text("Survivor medal - for completing 3 levels without single death.", (160 ,380), 20, "Yellow")
+            elif b_medal_show:
+                canvas.draw_polygon([[60, 360], [710, 360], [710, 390], [60, 390]], 2, "Blue", "Black")                
+                canvas.draw_text("Big Buyer medal - for purchasing for more than 50,000.00 in a single shop stop.", (70 ,380), 20, "Yellow")
+
+        
+# Initialization of frame, ship, boss
+frame = simplegui.create_frame("Space Mission", WIDTH, HEIGHT)
+my_ship = Ship([WIDTH / 2, HEIGHT / 2], [0, 0], 0, ship_image, ship_info)
+cool_boss = Boss()
+
+
+# Keybord inputs/outputs map
+inputs = {"left" : my_ship.turn_left,
+          "right" : my_ship.turn_right,
+          "up" : my_ship.thrust_pedal,
+          "space" : fire_turret,
+          "m" : fire_missile}
+
+outputs = {"right" : my_ship.turn_left, 
+           "left" : my_ship.turn_right,
+           "up" : my_ship.thrust_pedal}
+
+buttons = {"left" : False,		# True/False in inputs/outputs map will protect
+          "right" : False,		# from error due to holding the buttons while
+          "up" : False}			# the game has not yet started and releasing afterwards.
+
+
+# Registration of handlers
+frame.set_draw_handler(draw)
+frame.set_mouseclick_handler(click)
+frame.set_keydown_handler(key_down)
+frame.set_keyup_handler(key_up)
+
+
+# Registration of timers
+rock_spawner_timer = simplegui.create_timer(1000.0, spawn_rock)
+loading_screen_timer = simplegui.create_timer(5000.0, loading_screen_handler)
+game_name_timer = simplegui.create_timer(13000.0, game_name_handler)
+level_name_timer = simplegui.create_timer(3000.0, level_name_handler)
+protection_timer = simplegui.create_timer(3000.0, protection_handler)
+velocity_increment_timer = simplegui.create_timer(30000.0, velocity_increment_handler)
+level_timer = simplegui.create_timer(90000.0, level_handler)
+shop_message_timer = simplegui.create_timer(2000.0, shop_message_handler)
+end_level_timer = simplegui.create_timer(3000.0, end_level_handler)
+end_game_timer = simplegui.create_timer(3000.0, end_game_handler)
+
+
+# Let's start
+loading_screen_timer.start()
+frame.start()
